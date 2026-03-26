@@ -42,14 +42,18 @@ module Sniffer
         opts = @default_options.merge(opts)
         builder = HTTP::Request::Builder.new(opts)
         req = builder.build(verb, uri)
-        data_item = build_data_item(req)
-        Sniffer.store(data_item) if data_item
+        data_item = nil
+
+        if Sniffer.enabled?
+          data_item = build_data_item(req)
+          Sniffer.store(data_item)
+        end
 
         bm = Benchmark.realtime do
           @res = perform(req, opts)
         end
 
-        if data_item
+        if Sniffer.enabled?
           data_item.response = Sniffer::DataItem::Response.new(status: @res.code,
             headers: @res.headers.to_h,
             body: @res.body,
@@ -69,8 +73,6 @@ module Sniffer
       private
 
       def build_data_item(req)
-        return unless Sniffer.enabled?
-
         query = req.uri.path
         query += "?#{req.uri.query}" if req.uri.query
 
